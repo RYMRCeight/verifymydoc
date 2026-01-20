@@ -9,62 +9,119 @@
 <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
 
 <style>
-body{background:#121212;color:white;font-family:Inter,sans-serif}
-.card{background:#181818;border-radius:8px}
+body {
+  background:#121212;
+  color:white;
+  font-family:Inter, sans-serif;
+}
+.card {
+  background:#181818;
+  border-radius:8px;
+}
+.notice {
+  background:#222;
+  border:1px solid #333;
+}
 </style>
 </head>
 
 <body class="min-h-screen flex items-center justify-center p-6">
 
-<div class="card w-full max-w-md p-6 space-y-4">
+<!-- ================= NOTICE PANEL ================= -->
+<div id="noticePanel" class="card w-full max-w-md p-6 space-y-4 notice">
 
-<h1 class="text-xl font-bold text-center">Document Verification</h1>
+  <h1 class="text-lg font-bold text-center uppercase">
+    NOTICE
+  </h1>
 
-<p id="ref" class="text-sm text-center text-gray-400"></p>
+  <p class="text-sm text-gray-300 text-center leading-relaxed">
+    Verification confirms document integrity by comparing cryptographic signatures.
+    Any alteration or conversion of the document will result in verification failure.
+  </p>
 
-<input type="file" id="fileInput" accept=".docx"
- class="w-full p-2 bg-[#2a2a2a] rounded">
+  <button onclick="proceed()"
+    class="w-full py-2 rounded bg-green-500 text-black font-bold">
+    PROCEED
+  </button>
 
-<button onclick="verify()" class="w-full py-2 rounded bg-green-500 text-black font-bold">
-VERIFY
-</button>
+</div>
 
-<div id="result" class="hidden p-3 rounded text-center font-bold"></div>
+<!-- ================= VERIFICATION PANEL ================= -->
+<div id="verifyPanel"
+  class="card w-full max-w-md p-6 space-y-4 hidden border border-[#282828]">
+
+  <h1 class="text-xl font-bold text-center">
+    Document Verification
+  </h1>
+
+  <p id="ref" class="text-sm text-center text-gray-400"></p>
+
+  <input type="file" id="fileInput" accept=".docx"
+    class="w-full p-2 bg-[#2a2a2a] rounded text-sm">
+
+  <button onclick="verify()"
+    class="w-full py-2 rounded bg-green-500 text-black font-bold">
+    VERIFY DOCUMENT
+  </button>
+
+  <div id="result"
+    class="hidden p-3 rounded text-center font-bold"></div>
 
 </div>
 
 <script>
-async function sha256(data){
-  const h=await crypto.subtle.digest("SHA-256",data);
-  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("");
+/* ================= UI FLOW ================= */
+function proceed() {
+  document.getElementById("noticePanel").classList.add("hidden");
+  document.getElementById("verifyPanel").classList.remove("hidden");
 }
 
-async function hashDocxContent(file){
-  const zip=await JSZip.loadAsync(file);
-  const xml=await zip.file("word/document.xml").async("string");
+/* ================= HASH ================= */
+async function sha256(data) {
+  const h = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(h)]
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/* ================= CONTENT-ONLY HASH ================= */
+async function hashDocxContent(file) {
+  const zip = await JSZip.loadAsync(file);
+  const xml = await zip.file("word/document.xml").async("string");
   return sha256(new TextEncoder().encode(xml));
 }
 
-/* READ HASH FROM QR URL */
-const params=new URLSearchParams(location.hash.substring(1));
-const expected=params.get("h");
-const ref=params.get("doc");
-if(ref) document.getElementById("ref").textContent="Reference: "+ref;
+/* ================= READ QR DATA ================= */
+const params = new URLSearchParams(location.hash.substring(1));
+const expectedHash = params.get("h");
+const ref = params.get("doc");
 
-async function verify(){
-  const file=document.getElementById("fileInput").files[0];
-  if(!file){alert("Upload the issued DOCX");return;}
+if (ref) {
+  document.getElementById("ref").textContent =
+    "Document Reference: " + ref;
+}
 
-  const actual=await hashDocxContent(file);
-  const box=document.getElementById("result");
-
-  if(actual===expected){
-    box.textContent="✅ AUTHENTIC DOCUMENT";
-    box.className="p-3 rounded bg-green-600 text-black font-bold text-center";
-  }else{
-    box.textContent="❌ INVALID / ALTERED DOCUMENT";
-    box.className="p-3 rounded bg-red-600 text-white font-bold text-center";
+/* ================= VERIFY ================= */
+async function verify() {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) {
+    alert("Please upload the issued DOCX file.");
+    return;
   }
+
+  const actualHash = await hashDocxContent(file);
+  const box = document.getElementById("result");
+
+  if (actualHash === expectedHash) {
+    box.textContent = "✅ AUTHENTIC DOCUMENT";
+    box.className =
+      "p-3 rounded bg-green-600 text-black font-bold text-center";
+  } else {
+    box.textContent = "❌ INVALID / ALTERED DOCUMENT";
+    box.className =
+      "p-3 rounded bg-red-600 text-white font-bold text-center";
+  }
+
   box.classList.remove("hidden");
 }
 </script>
